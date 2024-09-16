@@ -10,3 +10,5 @@ System resource monitoring
 * 支持僵尸进程监控。  
 * 支持报告系统重启及shutdown事件。  
 * 支持所有进程打开的fd数量监控（此项需要root运行）。  
+
+可注册为系统服务，开机时自动运行。
