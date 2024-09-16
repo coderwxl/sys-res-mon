@@ -12,7 +12,7 @@ is_first=1
 
 script_path=$(realpath "$0")
 script_dir=$(dirname "$script_path")
-sendalarm=${script_dir}"/sendalarm_qw.sh"
+#sendalarm=${script_dir}"/sendalarm_qw.sh"
 sendalarm=${script_dir}"/sendalarm_mail.sh"
 
 get_cmd() {
