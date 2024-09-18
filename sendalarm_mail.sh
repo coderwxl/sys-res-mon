@@ -5,7 +5,25 @@ if [[ $# -ne 1 ]]; then
     exit 2
 fi
 
-#must modify the xxx to be your own
+# 设置邮件标题
+subject="Service Alarm"
+
+# 设置SMTP服务器地址和端口
+smtp_server="smtphz.qiye.163.com"
+smtp_port="465"
+
+# 设置发件人邮箱地址
+sender="xxx@xxx.com"
+
+# 设置发件人邮箱的用户名和密码
+username="xxx@xxx.com"
+password="xxx"
+
+#must modify the serverlabel to be your own
+#serverlabel="加密服务测试环境\n"
+serverlabel="xxx\n"
+
+deviceip=$(hostname -I | paste -sd ",")"\n"
 
 # todo 设置收件人邮箱地址
 recipient_list=("xxx@xxx.com" "xxx@xxx.com" "xxx@xxx.com")
@@ -23,22 +41,8 @@ do
     recipient_data=${recipient_data}${recipient}
 done
 
-# 设置发件人邮箱地址
-sender="xxx@xxx.com"
-
-# 设置邮件标题
-subject="系统资源监控告警"
-
 # 设置邮件正文
-body=$(echo -e "$1" | sed 's/\\\\n/\\n/g')
-
-# 设置SMTP服务器地址和端口
-smtp_server="smtphz.qiye.163.com"
-smtp_port="465"
-
-# 设置发件人邮箱的用户名和密码
-username="xxx@xxx.com"
-password="xxx"
+body=$(echo -e "$serverlabel$deviceip$1" | sed 's/\\\\n/\\n/g')
 
 # 使用curl命令进行SMTP身份验证并发送邮件
 response=$(curl --silent --url "smtps://$smtp_server:$smtp_port" --ssl-reqd \
@@ -58,7 +62,6 @@ EOF
 return_code=$?
 # 检查响应中是否包含"OK"，表示邮件发送成功
 if [[ $return_code -eq 0 ]]; then
-    echo "Email sent successfully!"
     exit 0
 else
     echo "Failed to send email. Error code: $return_code"

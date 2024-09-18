@@ -1,12 +1,13 @@
 #!/bin/bash
 
-CHECK_INTERVAL=5
+#定义检测间隔(秒), 0代表只执行一次
+CHECK_INTERVAL=60
 
-cpu_threshold=1
-disk_threshold=1
-mem_threshold=1
-inode_threshold=1
-fd_threshold=1
+cpu_threshold=85
+disk_threshold=85
+mem_threshold=85
+inode_threshold=85
+fd_threshold=200
 
 is_first=1
 
@@ -43,6 +44,9 @@ disk_info() {
         file_sys=$(echo "$line" | awk '{print $1}')
         mount_point=$(echo "$line" | awk '{print $7}')
         used=$(echo "$line"|awk '{print $6}'|sed -e 's/%//g')
+        if ! [[ "$used" =~ ^[0-9]+$ ]]; then
+            used=0
+        fi
         if [ $used -gt $disk_threshold ]; then
             echo "Abnormal Disk[$file_sys:$mount_point] usage[$used%]"
         fi
@@ -56,6 +60,9 @@ inode_info() {
         file_sys=$(echo "$line" | awk '{print $1}')
         mount_point=$(echo "$line" | awk '{print $7}')
         used=$(echo "$line"|awk '{print $6}'|sed -e 's/%//g')
+        if ! [[ "$used" =~ ^[0-9]+$ ]]; then
+            used=0
+        fi
         if [ $used -gt $inode_threshold ]; then
             echo "Abnormal Inode[$file_sys:$mount_point] usage[$used%]"
         fi
@@ -68,7 +75,11 @@ mem_info() {
     swap_total=$(grep -w SwapTotal /proc/meminfo|awk '{print $2/1024}')
     swap_free=$(grep -w SwapFree /proc/meminfo|awk '{print $2/1024}')
     mem_used=$(awk -v used=$mem_free -v total=$mem_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
-    swap_used=$(awk -v used=$swap_free -v total=$swap_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
+    if [ $swap_total -gt 0 ]; then
+        swap_used=$(awk -v used=$swap_free -v total=$swap_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
+    else
+        swap_used=0
+    fi
     if awk "BEGIN {exit !($mem_used > $mem_threshold)}"; then
         echo "Abnormal Memory usage[$mem_used%]"
     fi
@@ -98,7 +109,7 @@ zombie_info() {
         for i in $(echo "$ZPROC"); do
             data=$data$(ps -o pid,ppid,user,stat,args -p $i | tail -n +2)"\n"
         done
-        echo -e $data
+        echo -e "$data"
     fi
 }
 
@@ -107,8 +118,8 @@ last_reboot_shutdown_event() {
         is_first=0
         reboot_event=$(last -x -F | grep reboot | head -1)
         shutdown_event=$(last -x -F | grep shutdown | head -1)
-        echo "The most recent system reboot event: "$reboot_event
-        echo "The most recent system shutdown event: "$shutdown_event
+        echo "The most recent system reboot event: $reboot_event"
+        echo "The most recent system shutdown event: $shutdown_event"
     fi
 }
 
@@ -141,6 +152,10 @@ while true; do
     zombie_info
     last_reboot_shutdown_event
     fd_info
+
+    if [ $CHECK_INTERVAL -le 0 ]; then
+        exit 0
+    fi
 
     sleep "$CHECK_INTERVAL"
 done

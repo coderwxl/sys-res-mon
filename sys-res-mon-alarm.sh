@@ -1,19 +1,25 @@
 #!/bin/bash
 
-CHECK_INTERVAL=5
+#定义检测间隔(秒), 0代表只执行一次
+CHECK_INTERVAL=60
 
-cpu_threshold=1
-disk_threshold=1
-mem_threshold=1
-inode_threshold=1
-fd_threshold=20
+#todo
+cpu_threshold=85
+disk_threshold=85
+mem_threshold=85
+inode_threshold=85
+fd_threshold=200
+
 
 is_first=1
-
 script_path=$(realpath "$0")
 script_dir=$(dirname "$script_path")
-#sendalarm=${script_dir}"/sendalarm_qw.sh"
-sendalarm=${script_dir}"/sendalarm_mail.sh"
+sendalarm=${script_dir}"/sendalarm.sh" #todo
+
+if [[ ! -x "$sendalarm" ]]; then
+    echo $sendalarm" not exit or not exec"
+    exit 3
+fi
 
 get_cmd() {
     echo $(ps -p $1 -o cmd=)
@@ -48,6 +54,9 @@ disk_info() {
         file_sys=$(echo "$line" | awk '{print $1}')
         mount_point=$(echo "$line" | awk '{print $7}')
         used=$(echo "$line"|awk '{print $6}'|sed -e 's/%//g')
+        if ! [[ "$used" =~ ^[0-9]+$ ]]; then
+            used=0
+        fi
         if [ $used -gt $disk_threshold ]; then
             $sendalarm "Abnormal Disk[$file_sys:$mount_point] usage[$used%]"
         fi
@@ -61,6 +70,9 @@ inode_info() {
         file_sys=$(echo "$line" | awk '{print $1}')
         mount_point=$(echo "$line" | awk '{print $7}')
         used=$(echo "$line"|awk '{print $6}'|sed -e 's/%//g')
+        if ! [[ "$used" =~ ^[0-9]+$ ]]; then
+            used=0
+        fi
         if [ $used -gt $inode_threshold ]; then
             $sendalarm "Abnormal Inode[$file_sys:$mount_point] usage[$used%]"
         fi
@@ -73,7 +85,11 @@ mem_info() {
     swap_total=$(grep -w SwapTotal /proc/meminfo|awk '{print $2/1024}')
     swap_free=$(grep -w SwapFree /proc/meminfo|awk '{print $2/1024}')
     mem_used=$(awk -v used=$mem_free -v total=$mem_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
-    swap_used=$(awk -v used=$swap_free -v total=$swap_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
+    if [ $swap_total -gt 0 ]; then
+        swap_used=$(awk -v used=$swap_free -v total=$swap_total 'BEGIN { printf "%.1f", (1 - used / total) * 100 }')
+    else
+        swap_used=0
+    fi
     if awk "BEGIN {exit !($mem_used > $mem_threshold)}"; then
         $sendalarm "Abnormal Memory usage[$mem_used%]"
     fi
@@ -103,7 +119,7 @@ zombie_info() {
         for i in $(echo "$ZPROC"); do
             data=$data$(ps -o pid,ppid,user,stat,args -p $i | tail -n +2)"\n"
         done
-        $sendalarm $data
+        $sendalarm "$data"
     fi
 }
 
@@ -146,6 +162,10 @@ while true; do
     zombie_info
     last_reboot_shutdown_event
     fd_info
+
+    if [ $CHECK_INTERVAL -le 0 ]; then
+        exit 0
+    fi
 
     sleep "$CHECK_INTERVAL"
 done

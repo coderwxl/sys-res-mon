@@ -1,0 +1,11 @@
+# put this file in /etc/systemd/system/
+
+[Unit]
+Description=System resource monitoring
+
+[Service]
+Type=simple
+ExecStart=/app/sys-res-mon.sh &
+
+[Install]
+WantedBy=multi-user.target
