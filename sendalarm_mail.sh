@@ -32,7 +32,7 @@ recipient_data=""
 isfirst=1
 for recipient in "${recipient_list[@]}"
 do
-    recipient_cmd=${recipient_cmd}" --mail-rcpt \""$recipient"\""
+    recipient_cmd=${recipient_cmd}" --mail-rcpt $recipient"
     if [[ $isfirst -eq 1 ]]; then
         isfirst=0
     else
